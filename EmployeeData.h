@@ -1,18 +1,23 @@
 #pragma once
 #include <iostream>
-#include <string>
 #include <map>
+#include <string>
 using namespace std;
 
 class EmployeeData {
-private:
+   private:
     string name;
     int dept_no;
     int id;
     int income;
 
-public:
-    EmployeeData() {};
+   public:
+    EmployeeData() {
+        this->name = "";
+        this->dept_no = 0;
+        this->id = 0;
+        this->income = 0;
+    };
     ~EmployeeData() {};
 
     void setData(string name, int dept_no, int id, int income) {
@@ -22,13 +27,29 @@ public:
         this->income = income;
     }
 
-    void setName(string name) { this->name = name; }
-    void setDeptNo(int dept_no) { this->dept_no = dept_no; }
-    void setID(int id) { this->id = id; }
-    void setIncome(int income) { this->income = income; }
+    void setName(string name) {
+        this->name = name;
+    }
+    void setDeptNo(int dept_no) {
+        this->dept_no = dept_no;
+    }
+    void setID(int id) {
+        this->id = id;
+    }
+    void setIncome(int income) {
+        this->income = income;
+    }
 
-    string getName() { return name; }
-    int getDeptNo() { return dept_no; }
-    int getID() { return id; }
-    int getIncome() { return income; }
+    string getName() {
+        return name;
+    }
+    int getDeptNo() {
+        return dept_no;
+    }
+    int getID() {
+        return id;
+    }
+    int getIncome() {
+        return income;
+    }
 };
