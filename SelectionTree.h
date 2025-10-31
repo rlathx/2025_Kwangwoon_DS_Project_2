@@ -2,26 +2,29 @@
 #include "SelectionTreeNode.h"
 
 class SelectionTree {
-private:
+   private:
     SelectionTreeNode* root;
     ofstream* fout;
     SelectionTreeNode* run[8];
 
-public:
+   public:
     SelectionTree(ofstream* fout) {
-        
+        this->root = nullptr;
     }
 
     ~SelectionTree() {
-
     }
 
-    void setRoot(SelectionTreeNode* pN) { this->root = pN; }
-    SelectionTreeNode* getRoot() { return root; }
+    void setRoot(SelectionTreeNode* pN) {
+        this->root = pN;
+    }
+    SelectionTreeNode* getRoot() {
+        return root;
+    }
 
     void setTree();
 
-    bool Insert(EmployeeData* newData);
+    void Insert(EmployeeData* newData);
     bool Delete();
     bool printEmployeeData(int dept_no);
 };
