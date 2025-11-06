@@ -1,18 +1,22 @@
 #pragma once
+#include <fstream>
+
 #include "SelectionTreeNode.h"
 
 class SelectionTree {
    private:
     SelectionTreeNode* root;
-    ofstream* fout;
+    std::ofstream& fout;
     SelectionTreeNode* run[8];
 
    public:
-    SelectionTree(ofstream* fout) {
+    SelectionTree(std::ofstream& fout) : fout(fout) {
         this->root = nullptr;
+        for (int i = 0; i < 8; ++i) this->run[i] = nullptr;
     }
 
     ~SelectionTree() {
+        this->clear();
     }
 
     void setRoot(SelectionTreeNode* pN) {
@@ -27,4 +31,7 @@ class SelectionTree {
     void Insert(EmployeeData* newData);
     bool Delete();
     bool printEmployeeData(int dept_no);
+
+    void clear();
+    void deleteSubtree(SelectionTreeNode* node);
 };

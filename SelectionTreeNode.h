@@ -12,7 +12,9 @@ class SelectionTreeNode {
 
    public:
     SelectionTreeNode() {
-        this->pData = NULL;
+        // In the bubble up, temp->getEmployeeData()->... is called directly, but the node's pData
+        // is never filled Preventing nullptr dereference
+        this->pData = new EmployeeData;
         this->pLeft = NULL;
         this->pRight = NULL;
         this->pParent = NULL;
@@ -20,6 +22,10 @@ class SelectionTreeNode {
     }
     ~SelectionTreeNode() {
         if (hRoot) delete hRoot;
+        if (pData) {
+            delete pData;
+            pData = NULL;
+        }
     }
 
     void HeapInit() {

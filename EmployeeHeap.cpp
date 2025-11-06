@@ -89,7 +89,7 @@ void EmployeeHeap::ResizeArray() {
     int initialSize = this->maxCapacity + 1;
     EmployeeData** newHeapArr = new EmployeeData*[initialSize];
 
-    for (int i = 1; i <= this->datanum - 1; i++) {
+    for (int i = 1; i <= this->datanum; i++) {
         newHeapArr[i] = this->heapArr[i];
     }
 
