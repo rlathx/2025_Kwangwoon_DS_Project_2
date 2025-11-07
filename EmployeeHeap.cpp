@@ -19,27 +19,23 @@ EmployeeData* EmployeeHeap::Top() {
     return this->heapArr[1];
 }
 // Pop the top and rearrange the heap
+// Never delete topNode
+// Delete is only performed on BpTree (or a single, explicitly defined owner)
 bool EmployeeHeap::Delete() {
     if (IsEmpty()) return false;
-    EmployeeData* topNode = Top();
 
     if (this->datanum == 1) {
         this->heapArr[1] = nullptr;
         this->datanum = 0;
-        delete topNode;
-        return true;
+        return true;  // No delete (non-ownership)
     }
 
     EmployeeData* lastData = this->heapArr[this->datanum];
     this->heapArr[this->datanum] = nullptr;
     this->datanum--;
 
-    int lastIncome = lastData->getIncome();
-    int pos = DownHeap(lastIncome);
-
+    int pos = DownHeap(lastData->getIncome());
     this->heapArr[pos] = lastData;
-
-    delete topNode;
 
     return true;
 }
@@ -85,12 +81,17 @@ int EmployeeHeap::DownHeap(int index) {
 }
 
 void EmployeeHeap::ResizeArray() {
+    int oldCapacity = this->maxCapacity;
     this->maxCapacity *= 2;
-    int initialSize = this->maxCapacity + 1;
-    EmployeeData** newHeapArr = new EmployeeData*[initialSize];
+    int newCapacity = this->maxCapacity;
+
+    EmployeeData** newHeapArr = new EmployeeData*[newCapacity + 1];
 
     for (int i = 1; i <= this->datanum; i++) {
         newHeapArr[i] = this->heapArr[i];
+    }
+    for (int i = this->datanum + 1; i <= newCapacity; i++) {
+        newHeapArr[i] = nullptr;
     }
 
     delete[] this->heapArr;

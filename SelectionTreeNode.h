@@ -22,10 +22,7 @@ class SelectionTreeNode {
     }
     ~SelectionTreeNode() {
         if (hRoot) delete hRoot;
-        if (pData) {
-            delete pData;
-            pData = NULL;
-        }
+        pData = NULL;
     }
 
     void HeapInit() {

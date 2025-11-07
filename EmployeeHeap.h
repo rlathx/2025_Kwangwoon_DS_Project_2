@@ -14,6 +14,9 @@ class EmployeeHeap {
         // heap[0] is not used
         int initialSize = this->maxCapacity + 1;
         this->heapArr = new EmployeeData*[initialSize];
+        for (int i = 0; i < initialSize; i++) {
+            this->heapArr[i] = nullptr;
+        }
     }
     ~EmployeeHeap() {
         delete[] this->heapArr;
@@ -43,7 +46,7 @@ class EmployeeHeap {
     // EmployeeData* pointer is not deleted
     void clear() {
         if (!this->heapArr) return;
-        // BpTree가 EmployeeData* 해제 담당. 여기서는 포인터만 비움.
+        // BpTree is responsible for freeing EmployeeData*. Here, we only free the pointer.
         for (int i = 1; i <= this->datanum; ++i) {
             this->heapArr[i] = nullptr;
         }

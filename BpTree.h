@@ -14,13 +14,12 @@ class BpTree {
    private:
     BpTreeNode* root;
     int order;  // m children
-    ofstream* fout;
+    ofstream& fout;
 
    public:
-    BpTree(ofstream* fout, int order = 3) {
+    BpTree(ofstream& fout, int order = 3) : fout(fout) {
         this->root = nullptr;
         this->order = order;
-        this->fout = fout;
     }
 
     ~BpTree() {
@@ -39,7 +38,7 @@ class BpTree {
         return root;
     }
     BpTreeNode* searchDataNode(string name);
-    vector<string> searchRange(string start, string end);
+    bool searchRange(string start, string end);
 };
 
 #endif

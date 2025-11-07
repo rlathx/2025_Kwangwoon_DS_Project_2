@@ -5,61 +5,40 @@
 #include <vector>
 
 bool BpTree::Insert(EmployeeData* newData) {
+    const string name = newData->getName();
+
+    // If the tree is empty, create a new leaf node and set it as root
     if (this->root == nullptr) {
-        BpTreeNode* newNode = new BpTreeDataNode;
-        string name = newData->getName();
-        newNode->insertDataMap(name, newData);
-        newNode->setParent(this->root);  // nullptr
-        this->root = newNode;
+        BpTreeNode* newLeaf = new BpTreeDataNode;
+        newLeaf->insertDataMap(name, newData);
+        newLeaf->setParent(nullptr);
+        this->root = newLeaf;
         return true;
     }
 
-    BpTreeNode* temp = this->root;
-    const string name = newData->getName();
+    // Locate the leaf node where this key should be inserted
+    BpTreeNode* leaf = searchDataNode(name);
+    if (!leaf) return false;
 
-    // Go down the index node and find the data node to insert
-    while (temp && temp->getDataMap() ==
-                       nullptr) {  // If there is no data map, it is considered an index node.
-        map<string, BpTreeNode*>* tempIndex = temp->getIndexMap();
-        if (!tempIndex || tempIndex->empty()) break;
+    // Insert data into the leaf node
+    leaf->insertDataMap(name, newData);
 
-        bool moved = false;
-        // Traverse left to right and move to the child of the first key where name <= key
-        for (const auto& pair : *tempIndex) {
-            const string& key = pair.first;
-            BpTreeNode* child = pair.second;
-            if (name <= key) {
-                temp = child;
-                moved = true;
-                break;
-            }
-        }
-        // If greater than all keys: move to the rightmost child
-        if (!moved) {
-            temp = tempIndex->rbegin()->second;
-        }
-    }
-
-    // When we reach here, temp is a data node
-    if (!temp) return false;
-
-    temp->insertDataMap(name, newData);
-
-    // Split/promote if necessary (continue calling according to your logic)
-    if (excessDataNode(temp)) {
-        splitDataNode(temp);
+    // If the leaf overflows, split it
+    if (excessDataNode(leaf)) {
+        splitDataNode(leaf);
     }
     return true;
 }
 
 bool BpTree::excessDataNode(BpTreeNode* pDataNode) {
-    // If the number of keys in the data node exceeds order-1, it is considered a split target.
+    // Check whether the data node exceeds the maximum number of entries
     if (!pDataNode || pDataNode->getDataMap() == nullptr) return false;
     map<string, EmployeeData*>* dmap = pDataNode->getDataMap();
     return (int)dmap->size() > (this->order - 1);
 }
 
 bool BpTree::excessIndexNode(BpTreeNode* pIndexNode) {
+    // Check whether the index node exceeds the maximum number of keys
     if (pIndexNode == nullptr) return false;
 
     map<string, BpTreeNode*>* indexMap = pIndexNode->getIndexMap();
@@ -72,69 +51,61 @@ bool BpTree::excessIndexNode(BpTreeNode* pIndexNode) {
 }
 
 void BpTree::splitDataNode(BpTreeNode* pDataNode) {
+    // Split an overflowing leaf (data node)
     if (!pDataNode || pDataNode->getDataMap() == nullptr) return;
     BpTreeDataNode* leftNode = static_cast<BpTreeDataNode*>(pDataNode);
-    map<string, EmployeeData*>* leftMap = leftNode->getDataMap();
+    auto* leftMap = leftNode->getDataMap();
     if (leftMap->empty()) return;
 
-    // 1) Calculate the division criteria (left is the front ceil(n/2), right is the remainder)
-    const int n = (int)leftMap->size();
-    const int leftKeep = (n + 1) / 2;  // ceil
-    int idx = 0;
+    // Determine the split position
+    const int n = static_cast<int>(leftMap->size());
+    const int splitPos = (this->order / 2) + 1;
+    const int leftKeep = std::min(n, std::max(1, splitPos));
 
-    // First, collect the keys to be moved to the right
-    vector<string> moveKeys;
+    // Collect keys to move to the right node
+    int idx = 0;
+    std::vector<std::string> moveKeys;
     for (const auto& pair : *leftMap) {
         if (idx >= leftKeep) moveKeys.push_back(pair.first);
         ++idx;
     }
 
-    // 2) Create right node & move data
+    // Create the right node and move data
     BpTreeDataNode* rightNode = new BpTreeDataNode;
-
-    for (const string& k : moveKeys) {
-        // insert to right
-        EmployeeData* val = (*leftMap)[k];
-        rightNode->insertDataMap(k, val);
+    for (const std::string& k : moveKeys) {
+        rightNode->insertDataMap(k, (*leftMap)[k]);
     }
-    // Delete keys moved from the left
-    for (const string& k : moveKeys) {
+    for (const std::string& k : moveKeys) {
         leftNode->deleteMap(k);
     }
 
-    // 3) Leaf connection (pPrev/pNext) organization
-    // Move the next leftNode to the rightNode, preserving the chains on both sides
+    // Update leaf node linkage (next/prev pointers)
     BpTreeNode* oldNext = leftNode->getNext();
     rightNode->setPrev(leftNode);
     rightNode->setNext(oldNext);
     leftNode->setNext(rightNode);
     if (oldNext && oldNext->getDataMap() != nullptr) {
-        // Restore prev connection only when oldNext is a leaf
         static_cast<BpTreeDataNode*>(oldNext)->setPrev(rightNode);
     }
 
-    // 4) Register two children to the parent index
-    // - Use each child's "maximum key" as the parent mapIndex key.
-    // - Map the value to the corresponding child pointer.
-    // When traversing, if name <= key, go to that child. Otherwise, go to rbegin()->second.
-
-    // Find the maximum left/right height
+    // Compute maximum key of each child for parent insertion
     auto leftMaxIt = leftNode->getDataMap()->empty() ? leftNode->getDataMap()->end()
-                                                     : prev(leftNode->getDataMap()->end());
+                                                     : std::prev(leftNode->getDataMap()->end());
     auto rightMaxIt = rightNode->getDataMap()->empty() ? rightNode->getDataMap()->end()
-                                                       : prev(rightNode->getDataMap()->end());
+                                                       : std::prev(rightNode->getDataMap()->end());
+    std::string leftMaxKey =
+        (leftMaxIt == leftNode->getDataMap()->end()) ? std::string() : leftMaxIt->first;
+    std::string rightMaxKey =
+        (rightMaxIt == rightNode->getDataMap()->end()) ? std::string() : rightMaxIt->first;
 
-    // It is normal for empty pages not to occur, but just in case, it is a defense
-    string leftMaxKey = (leftMaxIt == leftNode->getDataMap()->end()) ? string() : leftMaxIt->first;
-    string rightMaxKey =
-        (rightMaxIt == rightNode->getDataMap()->end()) ? string() : rightMaxIt->first;
-
+    // Get the parent node
     BpTreeNode* parent = pDataNode->getParent();
 
+    // Lambda: remove a specific child reference from the parent index map
     auto erase_child_from_parent = [](BpTreeNode* parentNode, BpTreeNode* child) {
         if (!parentNode || parentNode->getIndexMap() == nullptr) return;
-        map<string, BpTreeNode*>* imap = parentNode->getIndexMap();
-        string targetKey;
+        auto* imap = parentNode->getIndexMap();
+        std::string targetKey;
         bool found = false;
         for (const auto& pr : *imap) {
             if (pr.second == child) {
@@ -146,86 +117,104 @@ void BpTree::splitDataNode(BpTreeNode* pDataNode) {
         if (found) imap->erase(targetKey);
     };
 
-    if (!parent) {
-        // 4-A) Create a new index root if there is no parent
-        BpTreeIndexNode* newRoot = new BpTreeIndexNode;
+    // Lambda: refresh the most-left child pointer of an index node
+    auto refreshMostLeftChild = [](BpTreeNode* indexNode) {
+        if (!indexNode) return;
+        auto* imap = indexNode->getIndexMap();
+        if (imap && !imap->empty())
+            indexNode->setMostLeftChild(imap->begin()->second);
+        else
+            indexNode->setMostLeftChild(nullptr);
+    };
 
+    // Case 1: No parent → create a new root index node
+    if (!parent) {
+        BpTreeIndexNode* newRoot = new BpTreeIndexNode;
         newRoot->insertIndexMap(leftMaxKey, leftNode);
         newRoot->insertIndexMap(rightMaxKey, rightNode);
-
         leftNode->setParent(newRoot);
         rightNode->setParent(newRoot);
-
+        refreshMostLeftChild(newRoot);
         this->root = newRoot;
-    } else {
-        // 4-B) Reflection on existing parents
+    }
+    // Case 2: Parent exists → update and check for overflow
+    else {
         erase_child_from_parent(parent, pDataNode);
-
-        map<string, BpTreeNode*>* pIndex = parent->getIndexMap();
-        if (pIndex) {
-            pIndex->insert(map<string, BpTreeNode*>::value_type(leftMaxKey, leftNode));
-            pIndex->insert(map<string, BpTreeNode*>::value_type(rightMaxKey, rightNode));
+        if (auto* pIndex = parent->getIndexMap()) {
+            pIndex->insert({leftMaxKey, leftNode});
+            pIndex->insert({rightMaxKey, rightNode});
         }
         leftNode->setParent(parent);
         rightNode->setParent(parent);
-
-        if (excessIndexNode(parent)) {
-            splitIndexNode(parent);
-        }
+        refreshMostLeftChild(parent);
+        if (excessIndexNode(parent)) splitIndexNode(parent);
     }
 }
 
 void BpTree::splitIndexNode(BpTreeNode* pIndexNode) {
+    // Split an overflowing index node
     if (!pIndexNode || pIndexNode->getIndexMap() == nullptr) return;
     BpTreeIndexNode* leftNode = static_cast<BpTreeIndexNode*>(pIndexNode);
-    map<string, BpTreeNode*>* leftMap = leftNode->getIndexMap();
+    auto* leftMap = leftNode->getIndexMap();
     if (leftMap->empty()) return;
 
-    // 1) Split criteria (keep the front half, move the back half)
-    const int n = (int)leftMap->size();
-    const int leftKeep = (n + 1) / 2;  // ceil
-    int idx = 0;
+    // Determine split point
+    const int n = static_cast<int>(leftMap->size());
+    const int splitPos = (this->order / 2) + 1;
+    const int leftKeep = std::min(n, std::max(1, splitPos));
 
-    vector<string> moveKeys;  // Keys to move to the right
+    // Collect keys to move to right node
+    int idx = 0;
+    std::vector<std::string> moveKeys;
     for (const auto& pair : *leftMap) {
         if (idx >= leftKeep) moveKeys.push_back(pair.first);
         ++idx;
     }
 
-    // 2) Create right index node & move entry
+    // Create right index node and move entries
     BpTreeIndexNode* rightNode = new BpTreeIndexNode;
-    map<string, BpTreeNode*>* rightMap = rightNode->getIndexMap();
-
-    for (const string& k : moveKeys) {
+    auto* rightMap = rightNode->getIndexMap();
+    for (const std::string& k : moveKeys) {
         BpTreeNode* child = (*leftMap)[k];
-        rightMap->insert(map<string, BpTreeNode*>::value_type(k, child));
+        rightMap->insert({k, child});
     }
-    for (const string& k : moveKeys) {
+    for (const std::string& k : moveKeys) {
         leftMap->erase(k);
     }
 
-    // Re-parenting of children (left/right each parent itself)
-    for (const auto& pair : *leftMap) {
-        if (pair.second) pair.second->setParent(leftNode);
-    }
-    for (const auto& pair : *rightMap) {
-        if (pair.second) pair.second->setParent(rightNode);
-    }
+    // Update parent pointers for all child nodes
+    for (const auto& pr : *leftMap)
+        if (pr.second) pr.second->setParent(leftNode);
+    for (const auto& pr : *rightMap)
+        if (pr.second) pr.second->setParent(rightNode);
 
-    // 3) Calculate the maximum left/right key (for indexing)
-    auto leftMaxIt = leftMap->empty() ? leftMap->end() : prev(leftMap->end());
-    auto rightMaxIt = rightMap->empty() ? rightMap->end() : prev(rightMap->end());
+    // Get max key of each side for parent linkage
+    auto leftMaxIt = leftMap->empty() ? leftMap->end() : std::prev(leftMap->end());
+    auto rightMaxIt = rightMap->empty() ? rightMap->end() : std::prev(rightMap->end());
+    std::string leftMaxKey = (leftMaxIt == leftMap->end()) ? std::string() : leftMaxIt->first;
+    std::string rightMaxKey = (rightMaxIt == rightMap->end()) ? std::string() : rightMaxIt->first;
 
-    string leftMaxKey = (leftMaxIt == leftMap->end()) ? string() : leftMaxIt->first;
-    string rightMaxKey = (rightMaxIt == rightMap->end()) ? string() : rightMaxIt->first;
+    // Lambda: refresh the most-left child pointer
+    auto refreshMostLeftChild = [](BpTreeNode* indexNode) {
+        if (!indexNode) return;
+        auto* imap = indexNode->getIndexMap();
+        if (imap && !imap->empty())
+            indexNode->setMostLeftChild(imap->begin()->second);
+        else
+            indexNode->setMostLeftChild(nullptr);
+    };
 
-    // 4) Parent update (root promotion or upward propagation)
+    // Update child pointers
+    refreshMostLeftChild(leftNode);
+    refreshMostLeftChild(rightNode);
+
     BpTreeNode* parent = pIndexNode->getParent();
 
+    // Lambda: erase a specific child from its parent index map
     auto erase_child_from_parent = [](BpTreeNode* parentNode, BpTreeNode* child) {
         if (!parentNode || parentNode->getIndexMap() == nullptr) return;
-        map<string, BpTreeNode*>* imap = parentNode->getIndexMap();
-        string eraseKey;
+        auto* imap = parentNode->getIndexMap();
+        std::string eraseKey;
         bool found = false;
         for (const auto& pr : *imap) {
             if (pr.second == child) {
@@ -237,42 +226,37 @@ void BpTree::splitIndexNode(BpTreeNode* pIndexNode) {
         if (found) imap->erase(eraseKey);
     };
 
+    // Case 1: No parent → create a new root
     if (!parent) {
-        // 4-A) Splitting the root: Creating a new root index
         BpTreeIndexNode* newRoot = new BpTreeIndexNode;
         newRoot->insertIndexMap(leftMaxKey, leftNode);
         newRoot->insertIndexMap(rightMaxKey, rightNode);
-
         leftNode->setParent(newRoot);
         rightNode->setParent(newRoot);
+        refreshMostLeftChild(newRoot);
         this->root = newRoot;
-    } else {
-        // 4-B) Reflection on existing parents
-        erase_child_from_parent(parent, pIndexNode);  // Remove old entries
-
-        map<string, BpTreeNode*>* pIndex = parent->getIndexMap();
-        if (pIndex) {
-            pIndex->insert(map<string, BpTreeNode*>::value_type(leftMaxKey, leftNode));
-            pIndex->insert(map<string, BpTreeNode*>::value_type(rightMaxKey, rightNode));
+    }
+    // Case 2: Parent exists → update parent's index map
+    else {
+        erase_child_from_parent(parent, pIndexNode);
+        if (auto* pIndex = parent->getIndexMap()) {
+            pIndex->insert({leftMaxKey, leftNode});
+            pIndex->insert({rightMaxKey, rightNode});
         }
         leftNode->setParent(parent);
         rightNode->setParent(parent);
-
-        // When the number of parents exceeds the number of parents, it is transmitted to the upper
-        // level.
-        if (excessIndexNode(parent)) {
-            splitIndexNode(parent);
-        }
+        refreshMostLeftChild(parent);
+        if (excessIndexNode(parent)) splitIndexNode(parent);
     }
 }
 
 BpTreeNode* BpTree::searchDataNode(string name) {
+    // Find the leaf node where a given key should be located
     if (!this->root) return nullptr;
 
-    // 1) Go down from the root
     BpTreeNode* cur = this->root;
 
-    // Through the index node to the data node
+    // Descend through index nodes until a data node is reached
     while (cur && cur->getDataMap() == nullptr) {
         map<string, BpTreeNode*>* imap = cur->getIndexMap();
         if (!imap || imap->empty()) return nullptr;
@@ -287,51 +271,59 @@ BpTreeNode* BpTree::searchDataNode(string name) {
                 break;
             }
         }
+        // If key is greater than all, go to rightmost child
         if (!moved) {
-            cur = imap->rbegin()->second;  // If it's bigger than all the keys, right end
+            cur = imap->rbegin()->second;
         }
     }
 
     return cur;
 }
 
-vector<string> BpTree::searchRange(string start, string end) {
-    vector<string> targetDatas;
-
+bool BpTree::searchRange(string start, string end) {
+    // Swap if the range is reversed
     if (start > end) std::swap(start, end);
 
-    // 1) Start from the leaf where start is entered
+    // Find the first leaf that may contain 'start'
     BpTreeNode* p = searchDataNode(start);
-    if (!p) return targetDatas;
+    if (!p) return false;
 
-    // 2) Traverse the leaf chain to the end
-    // Collect [start, end] by scanning the mapData of each leaf in the forward direction
+    bool flag = false;
 
+    // Sequentially traverse the leaf chain to collect all keys in range
     while (p && p->getDataMap() != nullptr) {
-        map<string, EmployeeData*>* dmap = p->getDataMap();
-
-        for (const auto& pair : *dmap) {
-            const string& key = pair.first;
-            EmployeeData* val = pair.second;
-
+        auto* dmap = p->getDataMap();
+        for (const auto& kv : *dmap) {
+            const string& key = kv.first;
+            EmployeeData* val = kv.second;
             if (key < start) continue;
             if (key > end) break;
 
-            ostringstream oss;
-            oss << val->getName() << '/' << val->getDeptNo() << '/' << val->getID() << '/'
-                << val->getIncome();
-            string target = oss.str();
+            // Print header once when the first match is found
+            if (flag == false) {
+                fout << "========SEARCH_BP========\n";
+            }
+            flag = true;
 
-            targetDatas.push_back(target);
+            // Output matching record
+            fout << val->getName() << '/' << val->getDeptNo() << '/' << val->getID() << '/'
+                 << val->getIncome() << '\n';
         }
-
+        // Move to next leaf
         p = static_cast<BpTreeDataNode*>(p)->getNext();
     }
 
-    return targetDatas;
+    // Print footer if any results were found
+    if (flag == true) {
+        fout << "=======================\n\n";
+        return true;
+    }
+
+    return false;
 }
 
 void BpTree::clear() {
+    // Delete all nodes and free allocated memory
     if (!this->root) return;
 
     std::queue<BpTreeNode*> q;
@@ -341,22 +333,26 @@ void BpTree::clear() {
         BpTreeNode* node = q.front();
         q.pop();
 
-        if (node->getMostLeftChild()) {  // index node
+        // Case: Data node → delete all EmployeeData objects
+        if (node->getDataMap() != nullptr) {
+            auto* dmap = node->getDataMap();
+            for (auto& pr : *dmap) {
+                delete pr.second;
+            }
+        }
+        // Case: Index node → enqueue all child pointers
+        else {
             auto* imap = node->getIndexMap();
             if (imap) {
-                for (auto& pair : *imap) {
-                    if (pair.second) q.push(pair.second);
-                }
-            }
-        } else {  // data node
-            auto* dmap = node->getDataMap();
-            if (dmap) {
-                for (auto& pair : *dmap) {
-                    delete pair.second;  // EmployeeData* delete only here
+                for (auto& pr : *imap) {
+                    if (pr.second) q.push(pr.second);
                 }
             }
         }
+
+        // Delete the node itself
         delete node;
     }
+
     this->root = nullptr;
 }

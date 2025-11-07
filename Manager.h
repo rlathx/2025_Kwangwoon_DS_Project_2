@@ -17,7 +17,7 @@ class Manager {
         this->fin.open("command.txt");
         this->flog.open("log.txt");
 
-        this->bptree = new BpTree(&this->flog, bpOrder);
+        this->bptree = new BpTree(this->flog, bpOrder);
         this->stree = new SelectionTree(this->flog);
         this->stree->setTree();
     }
