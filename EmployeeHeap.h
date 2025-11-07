@@ -1,3 +1,10 @@
+/*
+ * OWNERSHIP POLICY:
+ * - EmployeeHeap stores POINTERS ONLY (non-owning references)
+ * - BpTree owns all EmployeeData* objects and is responsible for deletion
+ * - Delete() only removes from heap structure, never deletes the object
+ */
+
 #pragma once
 
 #include "EmployeeData.h"

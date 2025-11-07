@@ -1,3 +1,9 @@
+/*
+ * OWNERSHIP POLICY:
+ * - SelectionTree/SelectionTreeNode store POINTERS ONLY
+ * - BpTree is the sole owner of EmployeeData* objects
+ */
+
 #pragma once
 #include <fstream>
 

@@ -22,6 +22,7 @@ class SelectionTreeNode {
     }
     ~SelectionTreeNode() {
         if (hRoot) delete hRoot;
+        delete pData;
         pData = NULL;
     }
 
