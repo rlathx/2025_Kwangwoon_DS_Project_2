@@ -121,8 +121,14 @@ void SelectionTree::Insert(EmployeeData* newData) {
 }
 
 bool SelectionTree::Delete() {
-    // Nothing to delete if the root is absent
-    if (this->root == nullptr) {
+    // Nothing to delete if the root is absent or has no valid data
+    if (this->root == nullptr || this->root->getEmployeeData() == nullptr) {
+        return false;
+    }
+
+    // Check if root has valid employee (income > 0 means there's actual data)
+    int rootIncome = this->root->getEmployeeData()->getIncome();
+    if (rootIncome == 0) {
         return false;
     }
 
@@ -130,13 +136,18 @@ bool SelectionTree::Delete() {
     int dept_no = this->root->getEmployeeData()->getDeptNo();
     int runNum = (dept_no / 100) - 1;
 
-    // Clear the root’s displayed data (visual reset)
+    // Validate runNum range
+    if (runNum < 0 || runNum >= 8) {
+        return false;
+    }
+
+    // Clear the root's displayed data (visual reset)
     this->root->getEmployeeData()->setData("", 0, 0, 0);
 
     // Pop the winner from the corresponding heap
     this->run[runNum]->getHeap()->Delete();
 
-    // Refresh the leaf’s displayed data with the new heap top (or clear if empty)
+    // Refresh the leaf's displayed data with the new heap top (or clear if empty)
     if (auto heap = this->run[runNum]->getHeap()) {
         if (auto top = heap->Top()) {
             this->run[runNum]->getEmployeeData()->setData(top->getName(), top->getDeptNo(),
@@ -173,8 +184,11 @@ bool SelectionTree::Delete() {
                 int id = temp->getRightChild()->getEmployeeData()->getID();
                 temp->getEmployeeData()->setData(name, r_dept_no, id, rightIncome);
             }
+        } else if (leftIncome == 0 && rightIncome == 0) {
+            // Both children are empty - clear parent
+            temp->getEmployeeData()->setData("", 0, 0, 0);
         }
-        // If equal, keep existing (no change)
+        // If equal and non-zero, keep existing (no change)
 
         temp = temp->getParent();
     }
